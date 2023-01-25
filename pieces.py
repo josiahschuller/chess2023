@@ -69,3 +69,16 @@ class Queen(Piece):
             return "Q"
         else:
             return "q"
+
+class King(Piece):
+    def __init__(self, id: int, row: int, col: int, side: int) -> None:
+        super().__init__(id=id, row=row, col=col, side=side)
+
+    def possible_moves(self) -> List[Move]:
+        pass
+    
+    def __repr__(self):
+        if self.side == 0:
+            return "K"
+        else:
+            return "k"
