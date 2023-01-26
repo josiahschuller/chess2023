@@ -22,8 +22,19 @@ def setup_board(state: Dict):
     """
     state_copy = deepcopy(state)
 
+    # White pieces
     state_copy = add_piece(state=state_copy, piece="rook", row=7, col=0, side=0)
+    state_copy = add_piece(state=state_copy, piece="rook", row=7, col=7, side=0)
+    state_copy = add_piece(state=state_copy, piece="bishop", row=7, col=2, side=0)
+    state_copy = add_piece(state=state_copy, piece="bishop", row=7, col=5, side=0)
     state_copy = add_piece(state=state_copy, piece="queen", row=7, col=3, side=0)
+
+    # Black pieces
+    state_copy = add_piece(state=state_copy, piece="rook", row=0, col=0, side=1)
+    state_copy = add_piece(state=state_copy, piece="rook", row=0, col=7, side=1)
+    state_copy = add_piece(state=state_copy, piece="bishop", row=0, col=2, side=1)
+    state_copy = add_piece(state=state_copy, piece="bishop", row=0, col=5, side=1)
+    state_copy = add_piece(state=state_copy, piece="queen", row=0, col=3, side=1)
 
     return state_copy
     
@@ -42,6 +53,8 @@ def add_piece(state: Dict, piece: str, row: int, col: int, side: int):
     
     if piece == "rook":
         piece_obj = pieces.Rook(id=state_copy["next_id"], row=row, col=col, side=side)
+    elif piece == "bishop":
+        piece_obj = pieces.Bishop(id=state_copy["next_id"], row=row, col=col, side=side)
     elif piece == "queen":
         piece_obj = pieces.Queen(id=state_copy["next_id"], row=row, col=col, side=side)
     
@@ -59,7 +72,7 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
     - state: game state
     - pieces_params: pieces parameters
     - id: id of piece to be replaced
-    - piece: name of the piece, i.e. "pawn", "rook", "knight", "bishop", "queen" or "king"
+    - piece: name of the piece, i.e. "rook", "knight", "bishop", "queen"
     - row: row number
     - col: col number
     Returns: updated game state
@@ -68,6 +81,8 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
     
     if piece == "rook":
         piece_obj = pieces.Rook(id=id, row=row, col=col, side=state["pieces_params"][id].side)
+    elif piece == "bishop":
+        piece_obj = pieces.Bishop(id=id, row=row, col=col, side=state["pieces_params"][id].side)
     elif piece == "queen":
         piece_obj = pieces.Queen(id=id, row=row, col=col, side=state["pieces_params"][id].side)
     
@@ -116,11 +131,86 @@ def make_move(state: Dict, move: pieces.Move):
 
 def display_board(state: Dict):
     for row in state["board"]:
-        print(row)
+        row_str = "|"
+        for square in row:
+            if square is not None:
+                row_str += str(square)
+            else:
+                row_str += "_"
+            row_str += "|"
+        print(row_str)
 
 def display_pieces(state: Dict):
     for key in state["pieces_params"]:
         print(f"{key}: {state['pieces_params'][key].full_str()}")
+
+def get_all_possible_moves(state: Dict) -> List[pieces.Move]:
+    """
+    Gets all the possible moves
+    """
+    possible_moves = []
+    
+    for piece in state["pieces_params"].values():
+        if piece.side == state["turn"]:
+            possible_moves += piece.get_possible_moves(state=state)
+    
+    return possible_moves
+
+def choose_move(state: Dict, move_input: str) -> pieces.Move:
+    """
+    Based on the move input, selects the move from the possible moves
+    move_input should be in the form of standard notation (e.g. Ra4)
+    """
+
+    # TODO: Check for castling (0-0 and 0-0-0?)
+    # TODO: Check for pawn moves (e.g. d4, dxe5, etc.)
+
+    column_letters = "abcdefgh" # Assumes that there are 8 columns
+    row_numbers = "87654321" # Assumes that there are 8 rows
+    end_col = column_letters.index(move_input[len(move_input)-2])
+    end_row = row_numbers.index(move_input[len(move_input)-1])
+
+    # Get the possible moves of that type of piece
+    possible_pieces = [piece for piece in state["pieces_params"].values() if piece.side == state["turn"] and str(piece).upper() == move_input[0].upper()]
+    possible_moves_with_piece = []
+    for piece in possible_pieces:
+        possible_moves_with_piece += piece.get_possible_moves(state=state)
+    
+    # Get the move itself
+    possible_moves = []
+    for move in possible_moves_with_piece:
+        if move.end_row == end_row and move.end_col == end_col:
+            possible_moves.append(move)
+
+    # Check for move ambiguity (e.g. if two of the same piece can move to the same square)
+    if len(possible_moves) == 1:
+        return possible_moves[0]
+    elif len(possible_moves) > 1:
+        # The move is ambiguous
+        if len(move_input) == 4:
+            if move_input[1] in column_letters:
+                # Disambiguate by column
+                for move in possible_moves:
+                    print(move)
+                    if move.start_col == column_letters.index(move_input[1]):
+                        return move
+                raise Exception("Move is ambiguous and invalid start column letter given")
+            elif move_input[1] in row_numbers:
+                # Disambiguate by row
+                for move in possible_moves:
+                    print(move)
+                    if move.start_row == row_numbers.index(move_input[1]):
+                        return move
+                raise Exception("Move is ambiguous and invalid start row number given")
+            else:
+                raise Exception("Move is ambiguous and invalid?")
+        else:
+            print(possible_moves)
+            raise Exception("Move is ambiguous")
+    else:
+        # The move is not valid, so return None
+        return None
+
 
 def convert_input_to_move(state: Dict, move_input: str) -> pieces.Move:
     """
@@ -156,35 +246,37 @@ def convert_input_to_move(state: Dict, move_input: str) -> pieces.Move:
 
     return move
 
+
 def play(state: Dict):
     state_copy = deepcopy(state)
 
-    while state_copy["result"] is None:
+    while len(get_all_possible_moves(state=state_copy)) > 0:
         # Display current state
         print()
         display_board(state=state_copy)
-        display_pieces(state=game_state)
+        # display_pieces(state=state_copy)
 
-        # Ask for move
-        if state_copy["turn"] == 0:
-            move_input = input("White to move: ")
-        else:
-            move_input = input("Black to move: ")
-        move = convert_input_to_move(state=state_copy, move_input=move_input)
+        # Get move
+        move_input = ""
+        move = None
+        while move_input == "" or move is None:
+            # Ask user for move
+            if state_copy["turn"] == 0:
+                move_input = input("White to move: ")
+            else:
+                move_input = input("Black to move: ")
+        
+            # Find move from move input
+            move = choose_move(state=state_copy, move_input=move_input)
 
         # Make move
         state_copy = make_move(state=state_copy, move=move)
+
+        # Change turn
+        state_copy["turn"] = (state_copy["turn"] + 1) % 2
     
     return state_copy
 
 game_state = create_game_state()
 game_state = setup_board(state=game_state)
 game_state = play(state=game_state)
-
-
-"""
-TODO: Removing piece from piece_params is not working?
-TODO: Make display_board look nicer
-TODO: Ask for user input again if no input is provided (or if the input is invalid)
-TODO: Make sure that the right colour piece is moved (i.e. a black piece isn't moved on White's turn)
-"""
