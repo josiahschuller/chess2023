@@ -269,6 +269,70 @@ class Queen(Piece):
         else:
             return "q"
 
+class Knight(Piece):
+    def __init__(self, id: int, row: int, col: int, side: int) -> None:
+        super().__init__(id=id, row=row, col=col, side=side)
+
+    def get_possible_moves(self, state: Dict) -> List[Move]:
+        move_list = []
+
+        # Add all squares the knight can reach
+        potential_squares = []
+        if self.row >= 1:
+            if self.col >= 2:
+                potential_squares.append((self.row - 1, self.col - 2))
+            if self.col <= 5:
+                potential_squares.append((self.row - 1, self.col + 2))
+        
+        if self.row >= 2:
+            if self.col >= 1:
+                potential_squares.append((self.row - 2, self.col - 1))
+            if self.col <= 6:
+                potential_squares.append((self.row - 2, self.col + 1))
+        
+        if self.row <= 6:
+            if self.col >= 2:
+                potential_squares.append((self.row + 1, self.col - 2))
+            if self.col <= 5:
+                potential_squares.append((self.row + 1, self.col + 2))
+        
+        if self.row <= 5:
+            if self.col >= 1:
+                potential_squares.append((self.row + 2, self.col - 1))
+            if self.col <= 6:
+                potential_squares.append((self.row + 2, self.col + 1))
+
+        # Add the possible moves 
+        for square in potential_squares:
+            potential_end_row = square[0]
+            potential_end_col = square[1]
+
+            if state["board"][potential_end_row][potential_end_col] is None:
+                move_list.append(Move(
+                    piece_id=self.id,
+                    start_row=self.row,
+                    start_col=self.col,
+                    end_row=potential_end_row,
+                    end_col=potential_end_col,
+                ))
+            elif state["board"][potential_end_row][potential_end_col].side != self.side:
+                move_list.append(Move(
+                    piece_id=self.id,
+                    start_row=self.row,
+                    start_col=self.col,
+                    end_row=potential_end_row,
+                    end_col=potential_end_col,
+                    piece_taken=state["board"][potential_end_row][potential_end_col].id
+                ))
+
+        return move_list
+    
+    def __repr__(self):
+        if self.side == 0:
+            return "N"
+        else:
+            return "n"
+
 class King(Piece):
     def __init__(self, id: int, row: int, col: int, side: int) -> None:
         super().__init__(id=id, row=row, col=col, side=side)
@@ -295,6 +359,7 @@ def move_or_take(state: Dict, potential_squares: Tuple[Tuple[int]], piece: Piece
         potential_end_col = square[1]
         
         if state["board"][potential_end_row][potential_end_col] is None:
+            # There is no piece in this square
             move_list.append(Move(
                 piece_id=piece.id,
                 start_row=piece.row,
@@ -303,7 +368,9 @@ def move_or_take(state: Dict, potential_squares: Tuple[Tuple[int]], piece: Piece
                 end_col=potential_end_col,
             ))
         else:
+            # There is a piece in this square
             if state["board"][potential_end_row][potential_end_col].side != piece.side:
+                # The piece is an opponent piece
                 move_list.append(Move(
                     piece_id=piece.id,
                     start_row=piece.row,

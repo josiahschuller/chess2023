@@ -28,6 +28,8 @@ def setup_board(state: Dict):
     state_copy = add_piece(state=state_copy, piece="bishop", row=7, col=2, side=0)
     state_copy = add_piece(state=state_copy, piece="bishop", row=7, col=5, side=0)
     state_copy = add_piece(state=state_copy, piece="queen", row=7, col=3, side=0)
+    state_copy = add_piece(state=state_copy, piece="knight", row=7, col=1, side=0)
+    state_copy = add_piece(state=state_copy, piece="knight", row=7, col=6, side=0)
 
     # Black pieces
     state_copy = add_piece(state=state_copy, piece="rook", row=0, col=0, side=1)
@@ -35,6 +37,8 @@ def setup_board(state: Dict):
     state_copy = add_piece(state=state_copy, piece="bishop", row=0, col=2, side=1)
     state_copy = add_piece(state=state_copy, piece="bishop", row=0, col=5, side=1)
     state_copy = add_piece(state=state_copy, piece="queen", row=0, col=3, side=1)
+    state_copy = add_piece(state=state_copy, piece="knight", row=0, col=1, side=1)
+    state_copy = add_piece(state=state_copy, piece="knight", row=0, col=6, side=1)
 
     return state_copy
     
@@ -57,6 +61,8 @@ def add_piece(state: Dict, piece: str, row: int, col: int, side: int):
         piece_obj = pieces.Bishop(id=state_copy["next_id"], row=row, col=col, side=side)
     elif piece == "queen":
         piece_obj = pieces.Queen(id=state_copy["next_id"], row=row, col=col, side=side)
+    elif piece == "knight":
+        piece_obj = pieces.Knight(id=state_copy["next_id"], row=row, col=col, side=side)
     
     state_copy["board"][row][col] = piece_obj
     state_copy["pieces_params"][state_copy["next_id"]] = piece_obj
@@ -85,6 +91,8 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
         piece_obj = pieces.Bishop(id=id, row=row, col=col, side=state["pieces_params"][id].side)
     elif piece == "queen":
         piece_obj = pieces.Queen(id=id, row=row, col=col, side=state["pieces_params"][id].side)
+    elif piece == "knight":
+        piece_obj = pieces.Knight(id=id, row=row, col=col, side=state["pieces_params"][id].side)
     
     state_copy["board"][row][col] = piece_obj
     state_copy["pieces_params"][id] = piece_obj
