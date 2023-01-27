@@ -5,10 +5,6 @@ Goals:
 * Program all game rules in an efficient manner
 
     To-do:
-    
-    * Add checks and checkmate
-    
-    * Add stalemate
 
     * Add draw by repetition
 

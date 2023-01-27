@@ -1,5 +1,5 @@
 import pieces, moves
-from typing import Dict
+from typing import Dict, Tuple
 from copy import deepcopy
 
 def create_game_state(rows: int = 8, cols: int = 8):
@@ -86,80 +86,6 @@ def add_piece(state: Dict, piece: str, row: int, col: int, side: int):
     # Increment next ID
     state_copy["next_id"] += 1
 
-    return state_copy
-
-def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
-    """
-    Replaces a piece on the board with another piece (used for promotions).
-    Arguments:
-    - state: game state
-    - pieces_params: pieces parameters
-    - id: id of piece to be replaced
-    - piece: name of the piece, i.e. "R", "N", "B", "Q"
-    - row: row number
-    - col: col number
-    Returns: updated game state
-    """
-    state_copy = deepcopy(state)
-    
-    if piece == pieces.ROOK:
-        piece_obj = pieces.Rook(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    elif piece == pieces.BISHOP:
-        piece_obj = pieces.Bishop(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    elif piece == pieces.QUEEN:
-        piece_obj = pieces.Queen(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    elif piece == pieces.KNIGHT:
-        piece_obj = pieces.Knight(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    
-    state_copy["board"][row][col] = id
-    state_copy["pieces_params"][id] = piece_obj
-    
-    return state_copy
-
-def make_move(state: Dict, move: moves.Move):
-    """
-    Makes a move. Returns new board and pieces
-    Arguments:
-    - state: game state
-    - move: Move object
-    Returns: updated game state
-    """
-    state_copy = deepcopy(state)
-    
-    if state_copy["board"][move.start_row][move.start_col] is None:
-        raise Exception(f"Invalid move: No piece at row={move.start_row}, col={move.start_col}")
-
-    state_copy["pieces_params"][move.piece_id].row = move.end_row
-    state_copy["pieces_params"][move.piece_id].col = move.end_col
-    
-    state_copy["board"][move.end_row][move.end_col] = move.piece_id
-    state_copy["board"][move.start_row][move.start_col] = None
-
-    if move.piece_taken is not None:
-        # Remove piece from board if piece is still there (used for en passant)
-        piece_taken = state_copy["pieces_params"][move.piece_taken]
-        if state_copy["board"][piece_taken.row][piece_taken.col] == piece_taken.id:
-            state_copy["board"][piece_taken.row][piece_taken.col] = None
-
-        # Add the taken piece to the pieces taken parameters Dict
-        state_copy["pieces_taken_params"][move.piece_taken] = piece_taken
-        # Remove the piece from the pieces parameters Dict
-        state_copy["pieces_params"].pop(move.piece_taken)
-    if move.promotion_piece is not None:
-        # Replace piece (for promotion)
-        state_copy = replace_piece(state=state_copy, id=move.piece_id, piece=move.promotion_piece, row=move.end_row, col=move.end_col)
-    
-    # Record move in state
-    state_copy["moves"].append(move)
-
-    # Record if king has moved
-    if isinstance(state_copy["pieces_params"][move.piece_id], pieces.King):
-        state_copy["pieces_params"][move.piece_id].has_moved = True
-    
-    # Make castling move
-    if move.castling_move is not None:
-        state_copy = make_move(state=state_copy, move=move.castling_move)
-    
     return state_copy
 
 def display_board(state: Dict):
@@ -294,9 +220,10 @@ def log_message(message: str = ""):
     """
     print(message)
 
-def play(state: Dict):
+def play(state: Dict) -> Tuple[Dict, float]:
     """
     Play the game in the terminal
+    Returns the state as well as the game result: 0 if white wins, 1 if black wins, 0.5 if draw
     """
     state_copy = deepcopy(state)
 
@@ -322,13 +249,33 @@ def play(state: Dict):
                     log_message("Invalid move")
 
         # Make move
-        state_copy = make_move(state=state_copy, move=move)
+        state_copy = pieces.make_move(state=state_copy, move=move)
 
         # Change turn
         state_copy["turn"] = (state_copy["turn"] + 1) % 2
     
-    return state_copy
+    # Game is over
+    # Check for checkmate or stalemate
+    if pieces.in_check(state=state_copy, side=state["turn"]):
+        # Checkmate
+        if state["turn"] == 0:
+            result = 1
+        else:
+            result = 0
+    else:
+        # Stalemate
+        result = 0.5
 
-game_state = create_game_state()
-game_state = setup_board(state=game_state)
-game_state = play(state=game_state)
+    return (state_copy, result)
+
+if __name__ == "__main__":
+    # Set up game
+    game_state = create_game_state()
+    game_state = setup_board(state=game_state)
+
+    # Play game
+    (game_state, game_result) = play(state=game_state)
+
+    # Display result
+    display_board(state=game_state)
+    log_message(game_result)

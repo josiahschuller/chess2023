@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Tuple, List
+from copy import deepcopy
 
 class Move:
     def __init__(
@@ -74,10 +75,9 @@ def move_or_take(state: Dict, potential_squares: Tuple[Tuple[int]], piece) -> Li
     return move_list
 
 
-def get_all_possible_moves(state: Dict, side: int, ignore_complicated: bool = False) -> List[Move]:
+def get_all_possible_moves(state: Dict, side: int) -> List[Move]:
     """
     Gets all the possible moves for a particular side
-    TODO: Input "ignore_complicated" ignores promotions and castling. This is used for calculating checks.
     """
     possible_moves = []
     
