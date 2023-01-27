@@ -21,6 +21,11 @@ def setup_board(state: Dict):
     """
     state_copy = deepcopy(state)
 
+    # Add pawns in one go (so many of them!)
+    for col in range(len(state_copy["board"][0])):
+        state_copy = add_piece(state=state_copy, piece=pieces.PAWN, row=6, col=col, side=0)
+        state_copy = add_piece(state=state_copy, piece=pieces.PAWN, row=1, col=col, side=1)
+
     # White pieces
     state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=7, col=0, side=0)
     state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=7, col=7, side=0)
@@ -53,19 +58,30 @@ def add_piece(state: Dict, piece: str, row: int, col: int, side: int):
     Returns: updated game state
     """
     state_copy = deepcopy(state)
+
+    id = state_copy["next_id"]
     
+    # Create the piece instance (NOTE: should this move to Piece class?)
     if piece == pieces.ROOK:
-        piece_obj = pieces.Rook(id=state_copy["next_id"], row=row, col=col, side=side)
+        piece_obj = pieces.Rook(id=id, row=row, col=col, side=side)
     elif piece == pieces.BISHOP:
-        piece_obj = pieces.Bishop(id=state_copy["next_id"], row=row, col=col, side=side)
+        piece_obj = pieces.Bishop(id=id, row=row, col=col, side=side)
     elif piece == pieces.QUEEN:
-        piece_obj = pieces.Queen(id=state_copy["next_id"], row=row, col=col, side=side)
+        piece_obj = pieces.Queen(id=id, row=row, col=col, side=side)
     elif piece == pieces.KNIGHT:
-        piece_obj = pieces.Knight(id=state_copy["next_id"], row=row, col=col, side=side)
+        piece_obj = pieces.Knight(id=id, row=row, col=col, side=side)
+    elif piece == pieces.PAWN:
+        piece_obj = pieces.Pawn(id=id, row=row, col=col, side=side)
+    elif piece == pieces.KING:
+        piece_obj = pieces.King(id=id, row=row, col=col, side=side)
+    else:
+        raise Exception(f"Piece does not exist: {piece}")
     
-    state_copy["board"][row][col] = piece_obj
-    state_copy["pieces_params"][state_copy["next_id"]] = piece_obj
-    
+    # Add piece to the board
+    state_copy["board"][row][col] = id
+    # Add piece to pieces parameters
+    state_copy["pieces_params"][id] = piece_obj
+    # Increment next ID
     state_copy["next_id"] += 1
 
     return state_copy
@@ -93,7 +109,7 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
     elif piece == pieces.KNIGHT:
         piece_obj = pieces.Knight(id=id, row=row, col=col, side=state["pieces_params"][id].side)
     
-    state_copy["board"][row][col] = piece_obj
+    state_copy["board"][row][col] = id
     state_copy["pieces_params"][id] = piece_obj
     
     return state_copy
@@ -109,18 +125,22 @@ def make_move(state: Dict, move: pieces.Move):
     state_copy = deepcopy(state)
     
     if state_copy["board"][move.start_row][move.start_col] is None:
-        print(state_copy["board"])
         raise Exception(f"Invalid move: No piece at row={move.start_row}, col={move.start_col}")
 
     state_copy["pieces_params"][move.piece_id].row = move.end_row
     state_copy["pieces_params"][move.piece_id].col = move.end_col
     
-    state_copy["board"][move.end_row][move.end_col] = state_copy["pieces_params"][move.piece_id]
+    state_copy["board"][move.end_row][move.end_col] = move.piece_id
     state_copy["board"][move.start_row][move.start_col] = None
 
     if move.piece_taken is not None:
+        # Remove piece from board if piece is still there (used for en passant)
+        piece_taken = state_copy["pieces_params"][move.piece_taken]
+        if state_copy["board"][piece_taken.row][piece_taken.col] == piece_taken.id:
+            state_copy["board"][piece_taken.row][piece_taken.col] = None
+
         # Add the taken piece to the pieces taken parameters Dict
-        state_copy["pieces_taken_params"][move.piece_taken] = state_copy["pieces_params"][move.piece_taken]
+        state_copy["pieces_taken_params"][move.piece_taken] = piece_taken
         # Remove the piece from the pieces parameters Dict
         state_copy["pieces_params"].pop(move.piece_taken)
     if move.promotion_piece is not None:
@@ -137,19 +157,20 @@ def make_move(state: Dict, move: pieces.Move):
     return state_copy
 
 def display_board(state: Dict):
+    log_message()
     for row in state["board"]:
         row_str = "|"
         for square in row:
             if square is not None:
-                row_str += str(square)
+                row_str += str(state["pieces_params"][square])
             else:
                 row_str += "_"
             row_str += "|"
-        print(row_str)
+        log_message(row_str)
 
 def display_pieces(state: Dict):
     for key in state["pieces_params"]:
-        print(f"{key}: {state['pieces_params'][key].full_str()}")
+        log_message(f"{key}: {state['pieces_params'][key].full_str()}")
 
 def get_all_possible_moves(state: Dict) -> List[pieces.Move]:
     """
@@ -198,21 +219,18 @@ def choose_move(state: Dict, move_input: str) -> pieces.Move:
             if move_input[1] in column_letters:
                 # Disambiguate by column
                 for move in possible_moves:
-                    print(move)
                     if move.start_col == column_letters.index(move_input[1]):
                         return move
                 raise Exception("Move is ambiguous and invalid start column letter given")
             elif move_input[1] in row_numbers:
                 # Disambiguate by row
                 for move in possible_moves:
-                    print(move)
                     if move.start_row == row_numbers.index(move_input[1]):
                         return move
                 raise Exception("Move is ambiguous and invalid start row number given")
             else:
                 raise Exception("Move is ambiguous and invalid?")
         else:
-            print(possible_moves)
             raise Exception("Move is ambiguous")
     else:
         # The move is not valid, so return None
@@ -234,10 +252,10 @@ def convert_input_to_move(state: Dict, move_input: str) -> pieces.Move:
     start_row = row_numbers.index(move_input[1])
     end_col = column_letters.index(move_input[2])
     end_row = row_numbers.index(move_input[3])
-    piece_id = state["board"][start_row][start_col].id
+    piece_id = state["board"][start_row][start_col]
     piece_taken = None
     if state["board"][end_row][end_col] is not None:
-        piece_taken = state["board"][end_row][end_col].id
+        piece_taken = state["board"][end_row][end_col]
     
     promotion_piece = None # ?
 
@@ -253,15 +271,27 @@ def convert_input_to_move(state: Dict, move_input: str) -> pieces.Move:
 
     return move
 
+def get_user_input(query: str):
+    """
+    Get the user input. This function is created to make I/O easier to control.
+    """
+    return input(query)
+
+def log_message(message: str):
+    """
+    Prints the message. This function is created to make I/O easier to control.
+    """
+    print(message)
 
 def play(state: Dict):
+    """
+    Play the game in the terminal
+    """
     state_copy = deepcopy(state)
 
     while len(get_all_possible_moves(state=state_copy)) > 0:
         # Display current state
-        print()
         display_board(state=state_copy)
-        # display_pieces(state=state_copy)
 
         # Get move
         move_input = ""
@@ -269,13 +299,16 @@ def play(state: Dict):
         while move_input == "" or move is None:
             # Ask user for move
             if state_copy["turn"] == 0:
-                move_input = input("White to move: ")
+                move_input = get_user_input("White to move: ")
             else:
-                move_input = input("Black to move: ")
+                move_input = get_user_input("Black to move: ")
         
             if move_input != "":
                 # Find move from move input
-                move = choose_move(state=state_copy, move_input=move_input)
+                try:
+                    move = choose_move(state=state_copy, move_input=move_input)
+                except:
+                    log_message("Invalid move")
 
         # Make move
         state_copy = make_move(state=state_copy, move=move)

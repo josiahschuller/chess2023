@@ -310,14 +310,14 @@ class Knight(Piece):
                     end_row=potential_end_row,
                     end_col=potential_end_col,
                 ))
-            elif state["board"][potential_end_row][potential_end_col].side != self.side:
+            elif state["pieces_params"][state["board"][potential_end_row][potential_end_col]].side != self.side:
                 move_list.append(Move(
                     piece_id=self.id,
                     start_row=self.row,
                     start_col=self.col,
                     end_row=potential_end_row,
                     end_col=potential_end_col,
-                    piece_taken=state["board"][potential_end_row][potential_end_col].id
+                    piece_taken=state["board"][potential_end_row][potential_end_col]
                 ))
 
         return move_list
@@ -387,49 +387,50 @@ class Pawn(Piece):
 
         # Add moves for taking diagonally
         for end_col in [self.col - 1, self.col + 1]:
-            square_to_take = state["board"][self.row + direction][end_col]
-            if square_to_take is not None and square_to_take.side != self.side:
-                # Check if the move will become a promotion
-                if self.row == final_row - direction:
-                    # Add moves for promotions
-                    for piece in promotion_pieces:
-                        move_list.append(Move(
-                            piece_id=self.id,
-                            start_row=self.row,
-                            start_col=self.col,
-                            end_row=self.row + direction,
-                            end_col=end_col,
-                            piece_taken=square_to_take.id,
-                            promotion_piece=piece,
-                        ))
-                else:
-                    move_list.append(Move(
-                        piece_id=self.id,
-                        start_row=self.row,
-                        start_col=self.col,
-                        end_row=self.row + direction,
-                        end_col=end_col,
-                        piece_taken=square_to_take.id,
-                    ))
-
-            # Add moves for en passant
-            if len(state["moves"]) > 0:
-                # Get the last move played
-                last_move = state["moves"][-1]
-                if last_move.end_row == self.row and last_move.end_col == self.col:
-                    # Last move ended on the square next to this pawn
-                    if str(state["piece_params"][last_move.piece_id]).upper() == "P":
-                        # Last move was a pawn moving to a square next to this pawn
-                        if abs(last_move.start_col - last_move.end_col) == 2:
-                            # Last move was a pawn moving forward 2 squares to a square next to this pawn
+            if end_col >= 0 and end_col < len(state["board"][0]):
+                square_to_take = state["board"][self.row + direction][end_col]
+                if square_to_take is not None and state["pieces_params"][square_to_take].side != self.side:
+                    # Check if the move will become a promotion
+                    if self.row == final_row - direction:
+                        # Add moves for promotions
+                        for piece in promotion_pieces:
                             move_list.append(Move(
                                 piece_id=self.id,
                                 start_row=self.row,
                                 start_col=self.col,
                                 end_row=self.row + direction,
                                 end_col=end_col,
-                                piece_taken=last_move.piece_id,
+                                piece_taken=square_to_take,
+                                promotion_piece=piece,
                             ))
+                    else:
+                        move_list.append(Move(
+                            piece_id=self.id,
+                            start_row=self.row,
+                            start_col=self.col,
+                            end_row=self.row + direction,
+                            end_col=end_col,
+                            piece_taken=square_to_take,
+                        ))
+
+                # Add moves for en passant
+                if len(state["moves"]) > 0:
+                    # Get the last move played
+                    last_move = state["moves"][-1]
+                    if last_move.end_row == self.row and last_move.end_col == end_col:
+                        # Last move ended on the square next to this pawn
+                        if str(state["pieces_params"][last_move.piece_id]).upper() == "P":
+                            # Last move was a pawn moving to a square next to this pawn
+                            if abs(last_move.start_row - last_move.end_row) == 2:
+                                # Last move was a pawn moving forward 2 squares to a square next to this pawn
+                                move_list.append(Move(
+                                    piece_id=self.id,
+                                    start_row=self.row,
+                                    start_col=self.col,
+                                    end_row=self.row + direction,
+                                    end_col=end_col,
+                                    piece_taken=last_move.piece_id,
+                                ))
 
 
         return move_list
@@ -477,7 +478,7 @@ def move_or_take(state: Dict, potential_squares: Tuple[Tuple[int]], piece: Piece
             ))
         else:
             # There is a piece in this square
-            if state["board"][potential_end_row][potential_end_col].side != piece.side:
+            if state["pieces_params"][state["board"][potential_end_row][potential_end_col]].side != piece.side:
                 # The piece is an opponent piece
                 move_list.append(Move(
                     piece_id=piece.id,
@@ -485,7 +486,7 @@ def move_or_take(state: Dict, potential_squares: Tuple[Tuple[int]], piece: Piece
                     start_col=piece.col,
                     end_row=potential_end_row,
                     end_col=potential_end_col,
-                    piece_taken=state["board"][potential_end_row][potential_end_col].id
+                    piece_taken=state["board"][potential_end_row][potential_end_col]
                 ))
             break
     
