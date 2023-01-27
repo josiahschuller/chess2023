@@ -1,4 +1,4 @@
-# chess2023
+# Josiah's 2023 Chess App
 
 Goals:
 
@@ -6,7 +6,7 @@ Goals:
 
     To-do:
     
-    * Add kings (including castling), checks and checkmate
+    * Add checks and checkmate
     
     * Add stalemate
 

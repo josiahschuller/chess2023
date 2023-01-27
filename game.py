@@ -1,5 +1,5 @@
-import pieces
-from typing import List, Dict
+import pieces, moves
+from typing import Dict
 from copy import deepcopy
 
 def create_game_state(rows: int = 8, cols: int = 8):
@@ -34,6 +34,7 @@ def setup_board(state: Dict):
     state_copy = add_piece(state=state_copy, piece=pieces.QUEEN, row=7, col=3, side=0)
     state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=7, col=1, side=0)
     state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=7, col=6, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.KING, row=7, col=4, side=0)
 
     # Black pieces
     state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=0, col=0, side=1)
@@ -43,6 +44,7 @@ def setup_board(state: Dict):
     state_copy = add_piece(state=state_copy, piece=pieces.QUEEN, row=0, col=3, side=1)
     state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=0, col=1, side=1)
     state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=0, col=6, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.KING, row=0, col=4, side=1)
 
     return state_copy
     
@@ -51,7 +53,7 @@ def add_piece(state: Dict, piece: str, row: int, col: int, side: int):
     Adds a piece to the board and to the pieces
     Arguments:
     - state: game state
-    - piece: name of the piece, i.e. "pawn", "rook", "knight", "bishop", "queen" or "king"
+    - piece: name of the piece, i.e. "P", "R", "N", "B", "Q" or "K"
     - row: row number
     - col: col number
     - side: 0 for white, 1 for black
@@ -93,7 +95,7 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
     - state: game state
     - pieces_params: pieces parameters
     - id: id of piece to be replaced
-    - piece: name of the piece, i.e. "rook", "knight", "bishop", "queen"
+    - piece: name of the piece, i.e. "R", "N", "B", "Q"
     - row: row number
     - col: col number
     Returns: updated game state
@@ -114,7 +116,7 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
     
     return state_copy
 
-def make_move(state: Dict, move: pieces.Move):
+def make_move(state: Dict, move: moves.Move):
     """
     Makes a move. Returns new board and pieces
     Arguments:
@@ -154,6 +156,10 @@ def make_move(state: Dict, move: pieces.Move):
     if isinstance(state_copy["pieces_params"][move.piece_id], pieces.King):
         state_copy["pieces_params"][move.piece_id].has_moved = True
     
+    # Make castling move
+    if move.castling_move is not None:
+        state_copy = make_move(state=state_copy, move=move.castling_move)
+    
     return state_copy
 
 def display_board(state: Dict):
@@ -172,26 +178,33 @@ def display_pieces(state: Dict):
     for key in state["pieces_params"]:
         log_message(f"{key}: {state['pieces_params'][key].full_str()}")
 
-def get_all_possible_moves(state: Dict) -> List[pieces.Move]:
-    """
-    Gets all the possible moves
-    """
-    possible_moves = []
-    
-    for piece in state["pieces_params"].values():
-        if piece.side == state["turn"]:
-            possible_moves += piece.get_possible_moves(state=state)
-    
-    return possible_moves
-
-def choose_move(state: Dict, move_input: str) -> pieces.Move:
+def choose_move(state: Dict, move_input: str) -> moves.Move:
     """
     Based on the move input, selects the move from the possible moves
     move_input should be in the form of standard notation (e.g. Ra4)
+    NOTE: pawn moves are represented with a "P" at the start (e.g. Pd4)
+    NOTE: taking moves do not have an "x" in them
     """
 
-    # TODO: Check for castling (0-0 and 0-0-0?)
-    # TODO: Check for pawn moves (e.g. d4, dxe5, etc.)
+    # Check for kingside castling
+    if move_input == "0-0" or move_input.upper() == "O-O":
+        if state["turn"] == 0:
+            move_input = "Kg1"
+        else:
+            move_input = "Kg8"
+    # Check for queenside castling
+    elif move_input == "0-0-0" or move_input.upper() == "O-O-O":
+        if state["turn"] == 0:
+            move_input = "Kc1"
+        else:
+            move_input = "Kc8"
+    
+
+    # Check for pawn promotion move (e.g. Pd8=Q)
+    promotion_piece = None
+    if move_input[-2] == "=":
+        promotion_piece = move_input[-1].upper()
+        move_input = move_input[:-2]
 
     column_letters = "abcdefgh" # Assumes that there are 8 columns
     row_numbers = "87654321" # Assumes that there are 8 rows
@@ -207,7 +220,7 @@ def choose_move(state: Dict, move_input: str) -> pieces.Move:
     # Get the move itself
     possible_moves = []
     for move in possible_moves_with_piece:
-        if move.end_row == end_row and move.end_col == end_col:
+        if move.end_row == end_row and move.end_col == end_col and move.promotion_piece == promotion_piece:
             possible_moves.append(move)
 
     # Check for move ambiguity (e.g. if two of the same piece can move to the same square)
@@ -237,13 +250,11 @@ def choose_move(state: Dict, move_input: str) -> pieces.Move:
         return None
 
 
-def convert_input_to_move(state: Dict, move_input: str) -> pieces.Move:
+def convert_input_to_move(state: Dict, move_input: str) -> moves.Move:
     """
     Converts an input in the form of "{start column letter}{start row number}{end column letter}{end row number}"
     to a Move object.
-    I am not sure how long I will use this for,
-    because in future, each move will be chosen
-    from a list of available moves.
+    NOTE: This is no longer in use.
     """
     column_letters = "abcdefgh"
     row_numbers = "87654321"
@@ -259,7 +270,7 @@ def convert_input_to_move(state: Dict, move_input: str) -> pieces.Move:
     
     promotion_piece = None # ?
 
-    move = pieces.Move(
+    move = moves.Move(
         piece_id=piece_id,
         start_row=start_row,
         start_col=start_col,
@@ -277,7 +288,7 @@ def get_user_input(query: str):
     """
     return input(query)
 
-def log_message(message: str):
+def log_message(message: str = ""):
     """
     Prints the message. This function is created to make I/O easier to control.
     """
@@ -289,7 +300,7 @@ def play(state: Dict):
     """
     state_copy = deepcopy(state)
 
-    while len(get_all_possible_moves(state=state_copy)) > 0:
+    while len(moves.get_all_possible_moves(state=state_copy, side=state["turn"])) > 0:
         # Display current state
         display_board(state=state_copy)
 
