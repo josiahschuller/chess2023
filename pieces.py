@@ -1,5 +1,12 @@
 from typing import List, Dict, Tuple, Optional
 
+ROOK = "rook"
+BISHOP = "bishop"
+QUEEN = "queen"
+KNIGHT = "knight"
+PAWN = "pawn"
+KING = "king"
+
 class Move:
     def __init__(
         self,
@@ -20,7 +27,7 @@ class Move:
         - end_row: row number of moved position
         - end_col: column number of moved position
         - piece_taken: id of the piece taken, if there is one
-        - promotion_piece: name of the piece, i.e. "pawn", "rook", "knight", "bishop", "queen" or "king"
+        - promotion_piece: name of the piece, i.e. "rook", "knight", "bishop", or "queen"
         """
         self.piece_id = piece_id
         self.start_row = start_row
@@ -48,9 +55,6 @@ class Piece:
         return f"{self.__repr__()} at ({self.row}, {self.col})"
 
 class Rook(Piece):
-    def __init__(self, id: int, row: int, col: int, side: int) -> None:
-        super().__init__(id=id, row=row, col=col, side=side)
-
     def get_possible_moves(self, state: Dict) -> List[Move]:
         move_list = []
 
@@ -95,9 +99,6 @@ class Rook(Piece):
             return "r"
 
 class Bishop(Piece):
-    def __init__(self, id: int, row: int, col: int, side: int) -> None:
-        super().__init__(id=id, row=row, col=col, side=side)
-
     def get_possible_moves(self, state: Dict) -> List[Move]:
         move_list = []
 
@@ -166,9 +167,6 @@ class Bishop(Piece):
             return "b"
 
 class Queen(Piece):
-    def __init__(self, id: int, row: int, col: int, side: int) -> None:
-        super().__init__(id=id, row=row, col=col, side=side)
-
     def get_possible_moves(self, state: Dict) -> List[Move]:
         
         move_list = []
@@ -270,9 +268,6 @@ class Queen(Piece):
             return "q"
 
 class Knight(Piece):
-    def __init__(self, id: int, row: int, col: int, side: int) -> None:
-        super().__init__(id=id, row=row, col=col, side=side)
-
     def get_possible_moves(self, state: Dict) -> List[Move]:
         move_list = []
 
@@ -281,25 +276,25 @@ class Knight(Piece):
         if self.row >= 1:
             if self.col >= 2:
                 potential_squares.append((self.row - 1, self.col - 2))
-            if self.col <= 5:
+            if self.col <= len(state["board"][0]) - 3:
                 potential_squares.append((self.row - 1, self.col + 2))
         
         if self.row >= 2:
             if self.col >= 1:
                 potential_squares.append((self.row - 2, self.col - 1))
-            if self.col <= 6:
+            if self.col <= len(state["board"][0]) - 2:
                 potential_squares.append((self.row - 2, self.col + 1))
         
-        if self.row <= 6:
+        if self.row <= len(state["board"]) - 2:
             if self.col >= 2:
                 potential_squares.append((self.row + 1, self.col - 2))
-            if self.col <= 5:
+            if self.col <= len(state["board"][0]) - 3:
                 potential_squares.append((self.row + 1, self.col + 2))
         
-        if self.row <= 5:
+        if self.row <= len(state["board"]) - 3:
             if self.col >= 1:
                 potential_squares.append((self.row + 2, self.col - 1))
-            if self.col <= 6:
+            if self.col <= len(state["board"][0]) - 2:
                 potential_squares.append((self.row + 2, self.col + 1))
 
         # Add the possible moves 
@@ -333,9 +328,122 @@ class Knight(Piece):
         else:
             return "n"
 
+class Pawn(Piece):
+    def get_possible_moves(self, state: Dict) -> List[Move]:
+        move_list = []
+
+        potential_move_squares = []
+        potential_take_squares = []
+
+        # Set direction of where pawns go (up for White, down for Black)
+        # Set start row for pawns
+        # Set final row for pawns (where they promote)
+        if self.side == 0:
+            direction = -1
+            start_row = len(state["board"]) - 2
+            final_row = 0
+        else:
+            direction = 1
+            start_row = 1
+            final_row = len(state["board"])
+        
+        # Pieces to promote to
+        promotion_pieces = [KNIGHT, BISHOP, ROOK, QUEEN]
+            
+        # Add moves for going forward
+        if state["board"][self.row + direction][self.col] is None:
+            # Add moves for going forward 1 square
+            
+            # Check if the move will promote the pawn
+            if self.row == final_row - direction:
+                # Add moves for promotions
+                for piece in promotion_pieces:
+                    move_list.append(Move(
+                        piece_id=self.id,
+                        start_row=self.row,
+                        start_col=self.col,
+                        end_row=self.row + direction,
+                        end_col=self.col,
+                        promotion_piece=piece
+                    ))
+            else:
+                move_list.append(Move(
+                    piece_id=self.id,
+                    start_row=self.row,
+                    start_col=self.col,
+                    end_row=self.row + direction,
+                    end_col=self.col,
+                ))
+
+            # Add moves for going forward 2 squares
+            if self.row == start_row and state["board"][self.row + 2*direction][self.col] is None:
+                move_list.append(Move(
+                    piece_id=self.id,
+                    start_row=self.row,
+                    start_col=self.col,
+                    end_row=self.row + 2*direction,
+                    end_col=self.col,
+                ))
+
+        # Add moves for taking diagonally
+        for end_col in [self.col - 1, self.col + 1]:
+            square_to_take = state["board"][self.row + direction][end_col]
+            if square_to_take is not None and square_to_take.side != self.side:
+                # Check if the move will become a promotion
+                if self.row == final_row - direction:
+                    # Add moves for promotions
+                    for piece in promotion_pieces:
+                        move_list.append(Move(
+                            piece_id=self.id,
+                            start_row=self.row,
+                            start_col=self.col,
+                            end_row=self.row + direction,
+                            end_col=end_col,
+                            piece_taken=square_to_take.id,
+                            promotion_piece=piece,
+                        ))
+                else:
+                    move_list.append(Move(
+                        piece_id=self.id,
+                        start_row=self.row,
+                        start_col=self.col,
+                        end_row=self.row + direction,
+                        end_col=end_col,
+                        piece_taken=square_to_take.id,
+                    ))
+
+            # Add moves for en passant
+            if len(state["moves"]) > 0:
+                # Get the last move played
+                last_move = state["moves"][-1]
+                if last_move.end_row == self.row and last_move.end_col == self.col:
+                    # Last move ended on the square next to this pawn
+                    if str(state["piece_params"][last_move.piece_id]).upper() == "P":
+                        # Last move was a pawn moving to a square next to this pawn
+                        if abs(last_move.start_col - last_move.end_col) == 2:
+                            # Last move was a pawn moving forward 2 squares to a square next to this pawn
+                            move_list.append(Move(
+                                piece_id=self.id,
+                                start_row=self.row,
+                                start_col=self.col,
+                                end_row=self.row + direction,
+                                end_col=end_col,
+                                piece_taken=last_move.piece_id,
+                            ))
+
+
+        return move_list
+    
+    def __repr__(self):
+        if self.side == 0:
+            return "P"
+        else:
+            return "p"
+
 class King(Piece):
     def __init__(self, id: int, row: int, col: int, side: int) -> None:
         super().__init__(id=id, row=row, col=col, side=side)
+        self.has_moved = False
 
     def get_possible_moves(self) -> List[Move]:
         pass

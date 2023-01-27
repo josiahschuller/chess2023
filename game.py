@@ -10,7 +10,6 @@ def create_game_state(rows: int = 8, cols: int = 8):
         "next_id": 0,
         "result": None, # 0 for white wins, 0.5 for draw, 1 for black wins
         "moves": [],
-        "king_has_moved": [False, False], # [white, black]
         "turn": 0, # 0 for white, 1 for black
     }
 
@@ -23,22 +22,22 @@ def setup_board(state: Dict):
     state_copy = deepcopy(state)
 
     # White pieces
-    state_copy = add_piece(state=state_copy, piece="rook", row=7, col=0, side=0)
-    state_copy = add_piece(state=state_copy, piece="rook", row=7, col=7, side=0)
-    state_copy = add_piece(state=state_copy, piece="bishop", row=7, col=2, side=0)
-    state_copy = add_piece(state=state_copy, piece="bishop", row=7, col=5, side=0)
-    state_copy = add_piece(state=state_copy, piece="queen", row=7, col=3, side=0)
-    state_copy = add_piece(state=state_copy, piece="knight", row=7, col=1, side=0)
-    state_copy = add_piece(state=state_copy, piece="knight", row=7, col=6, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=7, col=0, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=7, col=7, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.BISHOP, row=7, col=2, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.BISHOP, row=7, col=5, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.QUEEN, row=7, col=3, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=7, col=1, side=0)
+    state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=7, col=6, side=0)
 
     # Black pieces
-    state_copy = add_piece(state=state_copy, piece="rook", row=0, col=0, side=1)
-    state_copy = add_piece(state=state_copy, piece="rook", row=0, col=7, side=1)
-    state_copy = add_piece(state=state_copy, piece="bishop", row=0, col=2, side=1)
-    state_copy = add_piece(state=state_copy, piece="bishop", row=0, col=5, side=1)
-    state_copy = add_piece(state=state_copy, piece="queen", row=0, col=3, side=1)
-    state_copy = add_piece(state=state_copy, piece="knight", row=0, col=1, side=1)
-    state_copy = add_piece(state=state_copy, piece="knight", row=0, col=6, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=0, col=0, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.ROOK, row=0, col=7, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.BISHOP, row=0, col=2, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.BISHOP, row=0, col=5, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.QUEEN, row=0, col=3, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=0, col=1, side=1)
+    state_copy = add_piece(state=state_copy, piece=pieces.KNIGHT, row=0, col=6, side=1)
 
     return state_copy
     
@@ -55,13 +54,13 @@ def add_piece(state: Dict, piece: str, row: int, col: int, side: int):
     """
     state_copy = deepcopy(state)
     
-    if piece == "rook":
+    if piece == pieces.ROOK:
         piece_obj = pieces.Rook(id=state_copy["next_id"], row=row, col=col, side=side)
-    elif piece == "bishop":
+    elif piece == pieces.BISHOP:
         piece_obj = pieces.Bishop(id=state_copy["next_id"], row=row, col=col, side=side)
-    elif piece == "queen":
+    elif piece == pieces.QUEEN:
         piece_obj = pieces.Queen(id=state_copy["next_id"], row=row, col=col, side=side)
-    elif piece == "knight":
+    elif piece == pieces.KNIGHT:
         piece_obj = pieces.Knight(id=state_copy["next_id"], row=row, col=col, side=side)
     
     state_copy["board"][row][col] = piece_obj
@@ -85,13 +84,13 @@ def replace_piece(state: Dict, id: int, piece: str, row: int, col: int):
     """
     state_copy = deepcopy(state)
     
-    if piece == "rook":
+    if piece == pieces.ROOK:
         piece_obj = pieces.Rook(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    elif piece == "bishop":
+    elif piece == pieces.BISHOP:
         piece_obj = pieces.Bishop(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    elif piece == "queen":
+    elif piece == pieces.QUEEN:
         piece_obj = pieces.Queen(id=id, row=row, col=col, side=state["pieces_params"][id].side)
-    elif piece == "knight":
+    elif piece == pieces.KNIGHT:
         piece_obj = pieces.Knight(id=id, row=row, col=col, side=state["pieces_params"][id].side)
     
     state_copy["board"][row][col] = piece_obj
@@ -133,7 +132,7 @@ def make_move(state: Dict, move: pieces.Move):
 
     # Record if king has moved
     if isinstance(state_copy["pieces_params"][move.piece_id], pieces.King):
-        state_copy["king_has_moved"][state_copy["pieces_params"][move.piece_id].side] = True
+        state_copy["pieces_params"][move.piece_id].has_moved = True
     
     return state_copy
 
@@ -274,8 +273,9 @@ def play(state: Dict):
             else:
                 move_input = input("Black to move: ")
         
-            # Find move from move input
-            move = choose_move(state=state_copy, move_input=move_input)
+            if move_input != "":
+                # Find move from move input
+                move = choose_move(state=state_copy, move_input=move_input)
 
         # Make move
         state_copy = make_move(state=state_copy, move=move)
