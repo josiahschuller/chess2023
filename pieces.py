@@ -484,43 +484,48 @@ class King(Piece):
         # Castling
         if not self.has_moved:
             for rook_col in [0, len(state["board"][0]) - 1]:
-                pieces_between = False
-                # Check if there are any pieces between the king and rook
-                for col in range(min(self.col, rook_col) + 1, max(self.col, rook_col)):
-                    if state["board"][self.row][col] is not None:
-                        pieces_between = True
-                
-                if not pieces_between:
-                    if rook_col == 0:
-                        king_final_col = self.col - 2
-                        rook_final_col = self.col - 1
-                    else:
-                        king_final_col = self.col + 2
-                        rook_final_col = self.col + 1
-                    
-                    # Check that there are no opponent pieces that threaten the path of castling
-                    if not in_check_after_move(state=state, move=moves.Move(
-                        piece_id=self.id,
-                        start_row=self.row,
-                        start_col=self.col,
-                        end_row=self.row,
-                        end_col=self.col + (king_final_col - self.col)//2 # Check col in between start and final
-                    )):
-                        # Add move to castle
-                        move_list.append(moves.Move(
-                            piece_id=self.id,
-                            start_row=self.row,
-                            start_col=self.col,
-                            end_row=self.row,
-                            end_col=king_final_col,
-                            castling_move=moves.Move(
-                                piece_id=state["board"][self.row][rook_col],
+                # Check if there is a piece in the home square
+                if state["board"][self.row][rook_col] is not None:
+                    # Check if that piece is a rook on the same side
+                    rook_instance = state["pieces_params"][state["board"][self.row][rook_col]]
+                    if rook_instance.side == self.side and str(rook_instance).upper() == "R":
+                        pieces_between = False
+                        # Check if there are any pieces between the king and rook
+                        for col in range(min(self.col, rook_col) + 1, max(self.col, rook_col)):
+                            if state["board"][self.row][col] is not None:
+                                pieces_between = True
+                        
+                        if not pieces_between:
+                            if rook_col == 0:
+                                king_final_col = self.col - 2
+                                rook_final_col = self.col - 1
+                            else:
+                                king_final_col = self.col + 2
+                                rook_final_col = self.col + 1
+                            
+                            # Check that there are no opponent pieces that threaten the path of castling
+                            if not in_check_after_move(state=state, move=moves.Move(
+                                piece_id=self.id,
                                 start_row=self.row,
-                                start_col=rook_col,
+                                start_col=self.col,
                                 end_row=self.row,
-                                end_col=rook_final_col
-                            )
-                        ))
+                                end_col=self.col + (king_final_col - self.col)//2 # Check col in between start and final
+                            )):
+                                # Add move to castle
+                                move_list.append(moves.Move(
+                                    piece_id=self.id,
+                                    start_row=self.row,
+                                    start_col=self.col,
+                                    end_row=self.row,
+                                    end_col=king_final_col,
+                                    castling_move=moves.Move(
+                                        piece_id=state["board"][self.row][rook_col],
+                                        start_row=self.row,
+                                        start_col=rook_col,
+                                        end_row=self.row,
+                                        end_col=rook_final_col
+                                    )
+                                ))
         
         # Remove moves resulting in check
         if not ignore_checks:

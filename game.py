@@ -3,14 +3,26 @@ from typing import Dict, Tuple
 from copy import deepcopy
 
 def create_game_state(rows: int = 8, cols: int = 8):
+    """
+    Creates the game state:
+    - board: a layout for the Chess board, containing None for empty squares and the id of a piece for non-empty squares
+    - pieces_params: a Dict containing all non-taken pieces where each key is the id of a piece and the value is the instance of the piece
+    - pieces_taken_params: same as pieces_params but for taken pieces
+    - next_id: id of next piece to be added
+    - result: None for game still going, 0 for white wins, 0.5 for draw, 1 for black wins
+    - moves: list of moves played
+    - positions: list of positions occurred (in FEN)
+    - turn: 0 if it's white's turn, 1 if it's black's turn
+    """
     state = {
         "board": [[None for _ in range(cols)] for _ in range(rows)],
         "pieces_params": {},
         "pieces_taken_params": {},
         "next_id": 0,
-        "result": None, # 0 for white wins, 0.5 for draw, 1 for black wins
+        "result": None,
         "moves": [],
-        "turn": 0, # 0 for white, 1 for black
+        "positions": [],
+        "turn": 0,
     }
 
     return state
@@ -208,6 +220,83 @@ def convert_input_to_move(state: Dict, move_input: str) -> moves.Move:
 
     return move
 
+def board_to_fen(state: Dict) -> str:
+    """
+    Converts board layout to FEN notation (see https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation)
+    """
+    fen = ""
+    for row in state["board"]:
+        spaces = 0
+        for square in row:
+            if square is not None:
+                if spaces > 0:
+                    fen += str(spaces)
+                    spaces = 0
+                fen += str(state["pieces_params"][square])
+            else:
+                spaces += 1
+        if spaces > 0:
+            fen += str(spaces)
+        fen += "/"
+    fen = fen[:-1]
+    return fen
+
+def draw_by_insufficient_material(state: Dict) -> bool:
+    """
+    Checks if a draw by insufficient material has occurred
+    """
+    # Get strings of pieces on the board
+    pieces = [str(piece).upper() for piece in state["pieces_params"].values()]
+    
+    if len(pieces) == 2:
+        # Just 2 kings
+        print("Draw by insufficient material")
+        return True
+    elif len(pieces) == 3:
+        if "B" in pieces or "N" in pieces:
+            # 2 kings and one bishop/knight
+            print("Draw by insufficient material")
+            return True
+    return False
+
+def draw_by_repetition(state: Dict) -> bool:
+    """
+    Checks if a draw by repetition has occurred
+    """
+    position_dict = {}
+    for position in state["positions"]:
+        if position not in position_dict.keys():
+            position_dict[position] = 1
+        else:
+            position_dict[position] += 1
+            if position_dict[position] >= 3:
+                print("Draw by repetition")
+                return True
+                
+    return False
+
+def fifty_move_draw(state: Dict) -> bool:
+    """
+    Checks if a 50 move rule draw has occurred
+    """
+    total_moves = 50 * 2
+    if len(state["moves"]) > total_moves:
+        # Iterate through last 50 moves
+        for move in state["moves"][len(state["moves"]) - total_moves::]:
+            if move.piece_taken is not None:
+                # Piece was taken, so no draw
+                return False
+            for parameters in [state["pieces_params"], state["pieces_taken_params"]]:
+                if move.piece_id in parameters:
+                    if str(parameters[move.piece_id]).upper() == "P":
+                        # Pawn was moved, so no draw
+                        return False
+        print("Draw by 50 move rule")
+        return True
+    else:
+        return False
+
+
 def get_user_input(query: str):
     """
     Get the user input. This function is created to make I/O easier to control.
@@ -227,7 +316,7 @@ def play(state: Dict) -> Tuple[Dict, float]:
     """
     state_copy = deepcopy(state)
 
-    while len(moves.get_all_possible_moves(state=state_copy, side=state["turn"])) > 0:
+    while state_copy["result"] is None:
         # Display current state
         display_board(state=state_copy)
 
@@ -251,22 +340,30 @@ def play(state: Dict) -> Tuple[Dict, float]:
         # Make move
         state_copy = pieces.make_move(state=state_copy, move=move)
 
+        # Record position (used for draw by repetition)
+        state_copy["positions"].append(board_to_fen(state=state_copy))
+
         # Change turn
         state_copy["turn"] = (state_copy["turn"] + 1) % 2
-    
-    # Game is over
-    # Check for checkmate or stalemate
-    if pieces.in_check(state=state_copy, side=state["turn"]):
-        # Checkmate
-        if state["turn"] == 0:
-            result = 1
-        else:
-            result = 0
-    else:
-        # Stalemate
-        result = 0.5
 
-    return (state_copy, result)
+        # Check for draws
+        if draw_by_insufficient_material(state=state_copy) or draw_by_repetition(state=state_copy) or fifty_move_draw(state=state_copy):
+            state_copy["result"] = 0.5
+        
+        # Check for checkmate or stalemate
+        if len(moves.get_all_possible_moves(state=state_copy, side=state["turn"])) == 0:
+            if pieces.in_check(state=state_copy, side=state["turn"]):
+                # Checkmate
+                if state["turn"] == 0:
+                    state_copy["result"] = 1
+                else:
+                    state_copy["result"] = 0
+            else:
+                # Stalemate
+                print("Draw by stalemate")
+                state_copy["result"] = 0.5
+
+    return state_copy
 
 if __name__ == "__main__":
     # Set up game
@@ -274,8 +371,8 @@ if __name__ == "__main__":
     game_state = setup_board(state=game_state)
 
     # Play game
-    (game_state, game_result) = play(state=game_state)
+    game_state = play(state=game_state)
 
     # Display result
     display_board(state=game_state)
-    log_message(game_result)
+    log_message(game_state["result"])
