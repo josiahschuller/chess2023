@@ -136,7 +136,17 @@ def choose_move(state: Dict, move_input: str) -> moves.Move:
             move_input = "Kc1"
         else:
             move_input = "Kc8"
+
+    column_letters = "abcdefgh" # Assumes that there are 8 columns
+    row_numbers = "87654321" # Assumes that there are 8 rows
+
+    # Remove "x" from move input if there is one
+    move_input = move_input.replace("x", "")
     
+    # Check if the given move is a pawn move (move only starts with a single letter)
+    if move_input[0] in column_letters:
+        # Move is a pawn move
+        move_input = "P" + move_input
 
     # Check for pawn promotion move (e.g. Pd8=Q)
     promotion_piece = None
@@ -144,8 +154,6 @@ def choose_move(state: Dict, move_input: str) -> moves.Move:
         promotion_piece = move_input[-1].upper()
         move_input = move_input[:-2]
 
-    column_letters = "abcdefgh" # Assumes that there are 8 columns
-    row_numbers = "87654321" # Assumes that there are 8 rows
     end_col = column_letters.index(move_input[len(move_input)-2])
     end_row = row_numbers.index(move_input[len(move_input)-1])
 
@@ -188,38 +196,6 @@ def choose_move(state: Dict, move_input: str) -> moves.Move:
         return None
 
 
-def convert_input_to_move(state: Dict, move_input: str) -> moves.Move:
-    """
-    Converts an input in the form of "{start column letter}{start row number}{end column letter}{end row number}"
-    to a Move object.
-    NOTE: This is no longer in use.
-    """
-    column_letters = "abcdefgh"
-    row_numbers = "87654321"
-
-    start_col = column_letters.index(move_input[0])
-    start_row = row_numbers.index(move_input[1])
-    end_col = column_letters.index(move_input[2])
-    end_row = row_numbers.index(move_input[3])
-    piece_id = state["board"][start_row][start_col]
-    piece_taken = None
-    if state["board"][end_row][end_col] is not None:
-        piece_taken = state["board"][end_row][end_col]
-    
-    promotion_piece = None # ?
-
-    move = moves.Move(
-        piece_id=piece_id,
-        start_row=start_row,
-        start_col=start_col,
-        end_row=end_row,
-        end_col=end_col,
-        piece_taken=piece_taken,
-        promotion_piece=promotion_piece,
-    )
-
-    return move
-
 def board_to_fen(state: Dict) -> str:
     """
     Converts board layout to FEN notation (see https://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation)
@@ -250,12 +226,12 @@ def draw_by_insufficient_material(state: Dict) -> bool:
     
     if len(pieces) == 2:
         # Just 2 kings
-        print("Draw by insufficient material")
+        log_message("Draw by insufficient material")
         return True
     elif len(pieces) == 3:
         if "B" in pieces or "N" in pieces:
             # 2 kings and one bishop/knight
-            print("Draw by insufficient material")
+            log_message("Draw by insufficient material")
             return True
     return False
 
@@ -270,7 +246,7 @@ def draw_by_repetition(state: Dict) -> bool:
         else:
             position_dict[position] += 1
             if position_dict[position] >= 3:
-                print("Draw by repetition")
+                log_message("Draw by repetition")
                 return True
                 
     return False
@@ -291,7 +267,7 @@ def fifty_move_draw(state: Dict) -> bool:
                     if str(parameters[move.piece_id]).upper() == "P":
                         # Pawn was moved, so no draw
                         return False
-        print("Draw by 50 move rule")
+        log_message("Draw by 50 move rule")
         return True
     else:
         return False
@@ -351,16 +327,16 @@ def play(state: Dict) -> Tuple[Dict, float]:
             state_copy["result"] = 0.5
         
         # Check for checkmate or stalemate
-        if len(moves.get_all_possible_moves(state=state_copy, side=state["turn"])) == 0:
-            if pieces.in_check(state=state_copy, side=state["turn"]):
+        if len(moves.get_all_possible_moves(state=state_copy, side=state_copy["turn"])) == 0:
+            if pieces.in_check(state=state_copy, side=state_copy["turn"]):
                 # Checkmate
-                if state["turn"] == 0:
+                if state_copy["turn"] == 0:
                     state_copy["result"] = 1
                 else:
                     state_copy["result"] = 0
             else:
                 # Stalemate
-                print("Draw by stalemate")
+                log_message("Draw by stalemate")
                 state_copy["result"] = 0.5
 
     return state_copy
@@ -375,4 +351,7 @@ if __name__ == "__main__":
 
     # Display result
     display_board(state=game_state)
-    log_message(game_state["result"])
+    if game_state["result"] == 0:
+        log_message("White wins!")
+    else:
+        log_message("Black wins!")
